@@ -35,7 +35,7 @@ matches for all other characters.
 
 ## Options
 
-- '-f|--wordfile <dictfile>`: use the given file instead of the default system
+- `-f|--wordfile <dictfile>`: use the given file instead of the default system
   dictionary file for the input words. Dictionary files have one word per line.
   The default dictionary file is `/usr/share/dict/words`.
 
