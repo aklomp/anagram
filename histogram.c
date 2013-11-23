@@ -20,7 +20,11 @@
 #include <string.h>	/* memmove() */
 #include "histogram.h"
 
-static int char_compare (const void *const p1, const void *const p2);
+static int
+char_compare (const void *const p1, const void *const p2)
+{
+	return (*(char *const)p1 < *(char *const)p2) ? -1 : 1;
+}
 
 struct histogram *
 histogram_create (const char *const str, const size_t len)
@@ -203,10 +207,4 @@ histogram_subtract (struct histogram *target, struct histogram *from)
 		}
 	}
 	return 1;
-}
-
-static int
-char_compare (const void *const p1, const void *const p2)
-{
-	return (*(char *const)p1 < *(char *const)p2) ? -1 : 1;
 }

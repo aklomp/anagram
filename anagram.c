@@ -42,16 +42,6 @@ struct prev_word {
 static struct word *word_head = NULL;
 static struct word *word_tail = NULL;
 
-int main (int argc, char *argv[]);
-static void usage (const char *prgnam);
-static char *get_instr_from_args (int argc, char *argv[], size_t *inlen);
-static char *get_instr_from_stdin (size_t *inlen);
-static int parse_dictfile (const char *const filename, const struct histogram *const inhist, const size_t minlen, size_t *max_found_len, size_t *nwords);
-static int word_add (const char *const word, const size_t len, const struct histogram *const inhist);
-static void words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains_len, int len_satisfied);
-static void words_destroy (void);
-static int char_compare (const void *const p1, const void *const p2);
-
 static void
 usage (const char *prgnam)
 {
@@ -69,214 +59,6 @@ usage (const char *prgnam)
 	for (i = 0; i < sizeof(usage) / sizeof(usage[0]); i++) {
 		fprintf(stderr, "%s\n", usage[i]);
 	}
-}
-
-int
-main (int argc, char *argv[])
-{
-	struct histogram *inhist;
-	size_t word_min_len = 1;
-	size_t anagram_contains_len = 1;
-	char *filename = DEFAULT_DICTFILE;
-	char *instr;
-	size_t inlen;
-	size_t max_found_len = 0;
-	size_t nwords = 0;
-
-	/* Parse options: */
-	for (;;)
-	{
-		int c;
-		int opt_index = 0;
-		static struct option opt_long[] = {
-			{ "help", 0, 0, 'h' },
-			{ "wordfile", 1, 0, 'f' },
-			{ "minlength", 1, 0, 'm' },
-			{ "haslength", 1, 0, 'l' },
-			{ 0, 0, 0, 0 }
-		};
-		if ((c = getopt_long(argc, argv, "hf:m:l:", opt_long, &opt_index)) == -1) {
-			break;
-		}
-		switch (c)
-		{
-			case 'h':
-				usage(argv[0]);
-				return 0;
-
-			case 'f':
-				/* Dictionary file to use (file must contain one word per line): */
-				filename = optarg;
-				break;
-
-			case 'm':
-				/* All words in the anagram must have at least this length: */
-				word_min_len = atoi(optarg);
-				break;
-
-			case 'l':
-				/* The anagram must contain a word of at least this length: */
-				anagram_contains_len = atoi(optarg);
-				break;
-		}
-	}
-	/* Interpret the other elements as input strings to anagram;
-	 * if no further arguments, read from stdin: */
-	if ((instr = get_instr_from_args(argc, argv, &inlen)) == NULL
-	 && (instr = get_instr_from_stdin(&inlen)) == NULL) {
-		/* The anagram of the empty string is the empty string. Success? */
-		return 0;
-	}
-	/* Create histogram of input string: */
-	if ((inhist = histogram_create(instr, inlen)) == NULL) {
-		fprintf(stderr, "Could not create histogram of input\n");
-		return 1;
-	}
-	/* Parse the dictionary file: */
-	if (parse_dictfile(filename, inhist, word_min_len, &max_found_len, &nwords) == 0) {
-		fprintf(stderr, "Could not parse file\n");
-		histogram_destroy(&inhist);
-		return 1;
-	}
-	/* Check that we have words, and at least one has a length of at least
-	 * 'anagram_contains_len': */
-	if (max_found_len >= anagram_contains_len && nwords > 0) {
-		words_find(inhist, NULL, anagram_contains_len, 0);
-	}
-	words_destroy();
-	histogram_destroy(&inhist);
-	free(instr);
-	return 0;
-}
-
-static char *
-get_instr_from_args (int argc, char *argv[], size_t *inlen)
-{
-	size_t len = 0;
-	int i;
-	char *c;
-	char *p;
-	char *instr;
-
-	/* No options left on command line? */
-	if (optind >= argc) {
-		return NULL;
-	}
-	/* Find combined length of input strings without spaces: */
-	for (i = optind; i < argc; i++) {
-		for (c = argv[i]; *c; c++) {
-			if (!isspace(*c)) {
-				len++;
-			}
-		}
-	}
-	/* Allocate a string of this size: */
-	if (len == 0 || (p = instr = malloc(*inlen = len)) == NULL) {
-		return NULL;
-	}
-	/* Now copy the input strings, minus whitespace,
-	 * to this string: */
-	for (i = optind; i < argc; i++) {
-		for (c = argv[i]; *c; c++) {
-			if (!isspace(*c)) {
-				*p++ = *c;
-			}
-		}
-	}
-	return instr;
-}
-
-static char *
-get_instr_from_stdin (size_t *inlen)
-{
-	char *instr = NULL;
-	ssize_t n, len = 0;
-	char *t, *h;
-
-	/* Copy characters char by char from stdin to buffer.
-	 * We allocate a max buffer size of 100 characters, which is extremely
-	 * generous, since the amount of anagrams explodes with input size: */
-	if ((instr = malloc(100)) == NULL) {
-		return NULL;
-	}
-	do {
-		/* Keep retrying the read in case of EINTR:*/
-		while ((n = read(0, instr, 100 - len)) < 0 && errno == EINTR) {
-			;
-		}
-		len += n;
-	}
-	while (n > 0 && len < 100);
-
-	if (len == 0) {
-		free(instr);
-		return NULL;
-	}
-	/* Now remove all spaces: */
-	for (t = h = instr; *h && h - instr < len; h++) {
-		if (!isspace(*h)) {
-			*t++ = *h;
-		}
-	}
-	*t = '\0';
-	*inlen = t - instr;
-	return instr;
-}
-
-static int
-parse_dictfile (const char *const filename, const struct histogram *const inhist, size_t minlen, size_t *max_found_len, size_t *nwords)
-{
-	FILE *fp = NULL;
-	char buf[10000];	/* Window chunk size, not max filesize */
-	char *c;
-	char *anchor;
-	size_t nbytes;
-	size_t len = 0;
-	int skip_word = 0;
-
-	if ((fp = fopen(filename, "r")) == NULL) {
-		return 0;
-	}
-	while ((nbytes = len + fread(buf + len, 1, sizeof(buf) - len, fp)) > 0)
-	{
-		/* Split on newlines: */
-		for (anchor = c = buf; c < buf + nbytes; c++) {
-			if (*c != '\n')
-			{
-				/* If already skipping this word, don't inspect the char: */
-				if (skip_word) {
-					continue;
-				}
-				/* Check if this char is in the list of chars in the
-				 * input string; if not, this word can never be part
-				 * of the anagram: */
-				if (bsearch(c, inhist->bins, inhist->len, 1, char_compare)) {
-					len++;
-				}
-				else {
-					skip_word = 1;
-				}
-				continue;
-			}
-			if (skip_word == 0 && len >= minlen) {
-				if (word_add(anchor, len, inhist)) {
-					if (len > *max_found_len) {
-						*max_found_len = len;
-					}
-					(*nwords)++;
-				}
-			}
-			anchor = c + 1;
-			len = 0;
-			skip_word = 0;
-		}
-		/* Move remainder to front of buffer: */
-		if (len > 0) {
-			memmove(buf, anchor, len);
-		}
-	}
-	fclose(fp);
-	return 1;
 }
 
 static int
@@ -410,6 +192,80 @@ words_destroy (void)
 	}
 }
 
+static char *
+get_instr_from_args (int argc, char *argv[], size_t *inlen)
+{
+	size_t len = 0;
+	int i;
+	char *c;
+	char *p;
+	char *instr;
+
+	/* No options left on command line? */
+	if (optind >= argc) {
+		return NULL;
+	}
+	/* Find combined length of input strings without spaces: */
+	for (i = optind; i < argc; i++) {
+		for (c = argv[i]; *c; c++) {
+			if (!isspace(*c)) {
+				len++;
+			}
+		}
+	}
+	/* Allocate a string of this size: */
+	if (len == 0 || (p = instr = malloc(*inlen = len)) == NULL) {
+		return NULL;
+	}
+	/* Now copy the input strings, minus whitespace,
+	 * to this string: */
+	for (i = optind; i < argc; i++) {
+		for (c = argv[i]; *c; c++) {
+			if (!isspace(*c)) {
+				*p++ = *c;
+			}
+		}
+	}
+	return instr;
+}
+
+static char *
+get_instr_from_stdin (size_t *inlen)
+{
+	char *instr = NULL;
+	ssize_t n, len = 0;
+	char *t, *h;
+
+	/* Copy characters char by char from stdin to buffer.
+	 * We allocate a max buffer size of 100 characters, which is extremely
+	 * generous, since the amount of anagrams explodes with input size: */
+	if ((instr = malloc(100)) == NULL) {
+		return NULL;
+	}
+	do {
+		/* Keep retrying the read in case of EINTR:*/
+		while ((n = read(0, instr, 100 - len)) < 0 && errno == EINTR) {
+			;
+		}
+		len += n;
+	}
+	while (n > 0 && len < 100);
+
+	if (len == 0) {
+		free(instr);
+		return NULL;
+	}
+	/* Now remove all spaces: */
+	for (t = h = instr; *h && h - instr < len; h++) {
+		if (!isspace(*h)) {
+			*t++ = *h;
+		}
+	}
+	*t = '\0';
+	*inlen = t - instr;
+	return instr;
+}
+
 static int
 char_compare (const void *const p1, const void *const p2)
 {
@@ -417,4 +273,138 @@ char_compare (const void *const p1, const void *const p2)
 		return 0;
 	}
 	return (*(char *const)p1 < *(char *const)p2) ? -1 : 1;
+}
+
+static int
+parse_dictfile (const char *const filename, const struct histogram *const inhist, size_t minlen, size_t *max_found_len, size_t *nwords)
+{
+	FILE *fp = NULL;
+	char buf[10000];	/* Window chunk size, not max filesize */
+	char *c;
+	char *anchor;
+	size_t nbytes;
+	size_t len = 0;
+	int skip_word = 0;
+
+	if ((fp = fopen(filename, "r")) == NULL) {
+		return 0;
+	}
+	while ((nbytes = len + fread(buf + len, 1, sizeof(buf) - len, fp)) > 0)
+	{
+		/* Split on newlines: */
+		for (anchor = c = buf; c < buf + nbytes; c++) {
+			if (*c != '\n')
+			{
+				/* If already skipping this word, don't inspect the char: */
+				if (skip_word) {
+					continue;
+				}
+				/* Check if this char is in the list of chars in the
+				 * input string; if not, this word can never be part
+				 * of the anagram: */
+				if (bsearch(c, inhist->bins, inhist->len, 1, char_compare)) {
+					len++;
+				}
+				else {
+					skip_word = 1;
+				}
+				continue;
+			}
+			if (skip_word == 0 && len >= minlen) {
+				if (word_add(anchor, len, inhist)) {
+					if (len > *max_found_len) {
+						*max_found_len = len;
+					}
+					(*nwords)++;
+				}
+			}
+			anchor = c + 1;
+			len = 0;
+			skip_word = 0;
+		}
+		/* Move remainder to front of buffer: */
+		if (len > 0) {
+			memmove(buf, anchor, len);
+		}
+	}
+	fclose(fp);
+	return 1;
+}
+
+int
+main (int argc, char *argv[])
+{
+	struct histogram *inhist;
+	size_t word_min_len = 1;
+	size_t anagram_contains_len = 1;
+	char *filename = DEFAULT_DICTFILE;
+	char *instr;
+	size_t inlen;
+	size_t max_found_len = 0;
+	size_t nwords = 0;
+
+	/* Parse options: */
+	for (;;)
+	{
+		int c;
+		int opt_index = 0;
+		static struct option opt_long[] = {
+			{ "help", 0, 0, 'h' },
+			{ "wordfile", 1, 0, 'f' },
+			{ "minlength", 1, 0, 'm' },
+			{ "haslength", 1, 0, 'l' },
+			{ 0, 0, 0, 0 }
+		};
+		if ((c = getopt_long(argc, argv, "hf:m:l:", opt_long, &opt_index)) == -1) {
+			break;
+		}
+		switch (c)
+		{
+			case 'h':
+				usage(argv[0]);
+				return 0;
+
+			case 'f':
+				/* Dictionary file to use (file must contain one word per line): */
+				filename = optarg;
+				break;
+
+			case 'm':
+				/* All words in the anagram must have at least this length: */
+				word_min_len = atoi(optarg);
+				break;
+
+			case 'l':
+				/* The anagram must contain a word of at least this length: */
+				anagram_contains_len = atoi(optarg);
+				break;
+		}
+	}
+	/* Interpret the other elements as input strings to anagram;
+	 * if no further arguments, read from stdin: */
+	if ((instr = get_instr_from_args(argc, argv, &inlen)) == NULL
+	 && (instr = get_instr_from_stdin(&inlen)) == NULL) {
+		/* The anagram of the empty string is the empty string. Success? */
+		return 0;
+	}
+	/* Create histogram of input string: */
+	if ((inhist = histogram_create(instr, inlen)) == NULL) {
+		fprintf(stderr, "Could not create histogram of input\n");
+		return 1;
+	}
+	/* Parse the dictionary file: */
+	if (parse_dictfile(filename, inhist, word_min_len, &max_found_len, &nwords) == 0) {
+		fprintf(stderr, "Could not parse file\n");
+		histogram_destroy(&inhist);
+		return 1;
+	}
+	/* Check that we have words, and at least one has a length of at least
+	 * 'anagram_contains_len': */
+	if (max_found_len >= anagram_contains_len && nwords > 0) {
+		words_find(inhist, NULL, anagram_contains_len, 0);
+	}
+	words_destroy();
+	histogram_destroy(&inhist);
+	free(instr);
+	return 0;
 }
