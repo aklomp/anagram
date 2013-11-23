@@ -68,30 +68,30 @@ word_add (const char *const word, const size_t len, const struct histogram *cons
 	struct histogram *h;
 
 	if (len == 0) {
-		goto out_0;
+		goto err_0;
 	}
 	/* If the word is longer than the input string, the word is out: */
 	if (len > inhist->ntotal) {
-		goto out_0;
+		goto err_0;
 	}
 	if ((h = histogram_create(word, len)) == NULL) {
-		goto out_0;
+		goto err_0;
 	}
 	/* If the word's histogram has more max occurrences than the input
 	 * histogram, the word cannot be part of the anagram (cheap check): */
 	if (h->maxfreq > inhist->maxfreq) {
-		goto out_1;
+		goto err_1;
 	}
 	/* Further compare histograms; if the word has a higher occurrence
 	 * count for any given character than the input, then the word is out: */
 	if (!histogram_fits(h, inhist)) {
-		goto out_1;
+		goto err_1;
 	}
 	if ((w = malloc(sizeof(*w))) == NULL) {
-		goto out_1;
+		goto err_1;
 	}
 	if ((w->str = malloc(len + 1)) == NULL) {
-		goto out_2;
+		goto err_2;
 	}
 	w->len = len;
 	w->next = NULL;
@@ -109,9 +109,9 @@ word_add (const char *const word, const size_t len, const struct histogram *cons
 	}
 	return 1;
 
-out_2:	free(w);
-out_1:	histogram_destroy(&h);
-out_0:	return 0;
+err_2:	free(w);
+err_1:	histogram_destroy(&h);
+err_0:	return 0;
 }
 
 static void
@@ -243,7 +243,7 @@ get_instr_from_stdin (size_t *inlen)
 		return NULL;
 	}
 	do {
-		/* Keep retrying the read in case of EINTR:*/
+		/* Keep retrying the read in case of EINTR: */
 		while ((n = read(0, instr, 100 - len)) < 0 && errno == EINTR) {
 			;
 		}
