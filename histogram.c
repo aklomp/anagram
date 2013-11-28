@@ -36,14 +36,14 @@ histogram_create (const char *const str, const size_t len)
 	struct histogram *h;
 
 	if ((h = malloc(sizeof(*h))) == NULL) {
-		goto out_0;
+		goto err_0;
 	}
 	/* Worst-case length of h->bins is same as input: */
 	if ((h->bins = malloc(len)) == NULL) {
-		goto out_1;
+		goto err_1;
 	}
 	if ((h->freq = malloc(len * sizeof(*h->freq))) == NULL) {
-		goto out_2;
+		goto err_2;
 	}
 	h->len = 0;
 	h->maxfreq = 0;
@@ -85,9 +85,9 @@ histogram_create (const char *const str, const size_t len)
 	}
 	return h;
 
-out_2:	free(h->bins);
-out_1:	free(h);
-out_0:	return NULL;
+err_2:	free(h->bins);
+err_1:	free(h);
+err_0:	return NULL;
 }
 
 struct histogram *
@@ -96,22 +96,22 @@ histogram_copy (const struct histogram *orig)
 	struct histogram *copy;
 
 	if ((copy = malloc(sizeof(*copy))) == NULL) {
-		goto out_0;
+		goto err_0;
 	}
 	memcpy(copy, orig, sizeof(*orig));
 	if ((copy->bins = malloc(orig->len)) == NULL) {
-		goto out_1;
+		goto err_1;
 	}
 	memcpy(copy->bins, orig->bins, orig->len);
 	if ((copy->freq = malloc(orig->len * sizeof(*copy->freq))) == NULL) {
-		goto out_2;
+		goto err_2;
 	}
 	memcpy(copy->freq, orig->freq, orig->len * sizeof(*orig->freq));
 	return copy;
 
-out_2:	free(copy->bins);
-out_1:	free(copy);
-out_0:	return NULL;
+err_2:	free(copy->bins);
+err_1:	free(copy);
+err_0:	return NULL;
 }
 
 void
