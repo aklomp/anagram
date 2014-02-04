@@ -390,12 +390,14 @@ main (int argc, char *argv[])
 	/* Create histogram of input string: */
 	if ((inhist = histogram_create(instr, inlen)) == NULL) {
 		fprintf(stderr, "Could not create histogram of input\n");
+		free(instr);
 		return 1;
 	}
 	/* Parse the dictionary file: */
 	if (parse_dictfile(filename, inhist, word_min_len, &max_found_len, &nwords) == 0) {
 		fprintf(stderr, "Could not parse file\n");
 		histogram_destroy(&inhist);
+		free(instr);
 		return 1;
 	}
 	/* Check that we have words, and at least one has a length of at least
