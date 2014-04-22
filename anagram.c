@@ -36,6 +36,7 @@ struct word {
 
 struct prev_word {
 	char *str;
+	size_t len;
 	struct prev_word *prev;
 };
 
@@ -152,13 +153,14 @@ words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains
 			/* Ensure before printing that at least one of the words in
 			 * the anagram is at least 'anagram_contains_len' in length: */
 			if (len_satisfied || w->len >= anagram_contains_len) {
-				printf("%s", w->str);
+				fwrite(w->str, w->len, 1, stdout);
 				/* Backtrack over all previous words in this chain,
 				 * print them all in reverse order: */
 				for (p = prev; p; p = p->prev) {
-					printf(" %s", p->str);
+					fputc(' ', stdout);
+					fwrite(p->str, p->len, 1, stdout);
 				}
-				printf("\n");
+				fputc('\n', stdout);
 			}
 			histogram_destroy(&copy);
 			return;
@@ -172,6 +174,7 @@ words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains
 		 * essentially create a list on the stack of breadcrumbs of
 		 * where we came from: */
 		pw.str = w->str;
+		pw.len = w->len;
 		pw.prev = prev;
 		words_find(copy, &pw, anagram_contains_len, (len_satisfied || w->len >= anagram_contains_len));
 		histogram_destroy(&copy);
