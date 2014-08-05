@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include "../histogram.h"
 
-#define ASSERT(x) if (!(x)) printf("FAILED: line %d\n", __LINE__)
+#define ASSERT(x) if (!(x)) { printf("FAILED: line %d\n", __LINE__); ret = 1; }
 
 int
 main ()
 {
+	int ret = 0;
 	struct histogram *ha, *hb, *hc, *hd, *he, *hf;
 
 	ha = histogram_create("abc", 3);
@@ -90,5 +91,5 @@ main ()
 	ASSERT(hf->freq[2] == 0);
 	ASSERT(hf->ntotal == 0);
 
-	return 0;
+	return ret;
 }
