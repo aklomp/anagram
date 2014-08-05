@@ -3,6 +3,8 @@ An anagram a word or set of words made up of the same letters as the input. For
 example, an anagram of the string `hello world` is `oh well, lord`, because it
 contains the same letters as the input.
 
+[![Build Status](https://travis-ci.org/aklomp/anagram.svg)](https://travis-ci.org/aklomp/anagram)
+
 Simple usage:
 
 ```sh
