@@ -1,10 +1,8 @@
 CFLAGS += -std=c89 -O3 -Wall -Wextra -Werror -pedantic
 
-.PHONY: clean all
+.PHONY: clean test
 
 OBJS := anagram.o histogram.o
-
-all: anagram test/test
 
 anagram: $(OBJS)
 	$(CC) $(LDFLAGS) -o "$@" $(OBJS)
@@ -14,6 +12,9 @@ anagram: $(OBJS)
 
 test/test: histogram.o test/test.o
 	$(CC) $(LDFLAGS) -o $@ $^
+
+test: test/test
+	./test/test
 
 clean:
 	rm -f $(OBJS) anagram test/test test/test.o
