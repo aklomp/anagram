@@ -1,6 +1,6 @@
 CFLAGS += -std=c89 -O3 -Wall -Wextra -Werror -pedantic
 
-.PHONY: clean test
+.PHONY: analyze clean test
 
 OBJS := anagram.o histogram.o
 
@@ -15,6 +15,9 @@ test/test: histogram.o test/test.o
 
 test: test/test
 	./test/test
+
+analyze: clean
+	scan-build --use-analyzer=`which clang` --status-bugs make anagram
 
 clean:
 	rm -f $(OBJS) anagram test/test test/test.o
