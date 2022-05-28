@@ -1,9 +1,9 @@
+[![Test](https://github.com/aklomp/anagram/actions/workflows/test.yml/badge.svg)](https://github.com/aklomp/anagram/actions/workflows/test.yml)
+
 Anagram is a Linux commandline utility to find anagrams of words and sentences.
 An anagram a word or set of words made up of the same letters as the input. For
 example, an anagram of the string `hello world` is `oh well, lord`, because it
 contains the same letters as the input.
-
-[![Build Status](https://travis-ci.org/aklomp/anagram.svg)](https://travis-ci.org/aklomp/anagram)
 
 Simple usage:
 
