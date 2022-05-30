@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../histogram.h"
+#include "../src/histogram.h"
 
 #define ASSERT(x) if (!(x)) { printf("FAILED: line %d\n", __LINE__); ret = 1; }
 

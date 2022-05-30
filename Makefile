@@ -2,22 +2,20 @@ CFLAGS += -std=c89 -O3 -Wall -Wextra -Werror -pedantic
 
 .PHONY: analyze clean test
 
-OBJS := anagram.o histogram.o
+PROG := anagram
+SRCS := $(wildcard src/*.c)
+OBJS := $(SRCS:.c=.o)
 
-anagram: $(OBJS)
-	$(CC) $(LDFLAGS) -o "$@" $(OBJS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -o "$@" -c $^
-
-test/test: histogram.o test/test.o
+$(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
+test/test: src/histogram.o test/test.o
 
 test: test/test
 	./test/test
 
 analyze: clean
-	scan-build --use-analyzer=`which clang` --status-bugs make anagram
+	scan-build --status-bugs $(MAKE)
 
 clean:
-	rm -f $(OBJS) anagram test/test test/test.o
+	$(RM) $(OBJS) $(PROG) test/test test/test.o
