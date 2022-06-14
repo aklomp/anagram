@@ -53,7 +53,7 @@ matches for all other characters.
 
 ## Internals
 
-Anagram is written in C (specifically, C89), and compiles with the compiler set
+Anagram is written in C (specifically, C99), and compiles with the compiler set
 to its most pedantic. It has been profiled with Valgrind and with LLVM's
 `scan-build` tool.
 

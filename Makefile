@@ -1,4 +1,4 @@
-CFLAGS += -std=c89 -O3 -Wall -Wextra -Werror -pedantic
+CFLAGS += -std=c99 -O3 -Wall -Wextra -Werror -pedantic
 
 .PHONY: analyze clean test
 
