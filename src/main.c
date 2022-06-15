@@ -23,9 +23,9 @@
 #include <errno.h>
 #include <getopt.h>
 #include <ctype.h>	/* isspace() */
-#include "histogram.h"
 
-#define DEFAULT_DICTFILE	"/usr/share/dict/words"
+#include "config.h"
+#include "histogram.h"
 
 struct word {
 	char *str;
@@ -116,7 +116,7 @@ err_0:	return 0;
 }
 
 static void
-words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains_len, int len_satisfied)
+words_find (const struct config *config, struct histogram *h, struct prev_word *prev, int len_satisfied)
 {
 	struct word *w;
 	struct histogram *copy;
@@ -126,7 +126,7 @@ words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains
 	/* If the anagram must contain a word of a minimum length, which has
 	 * not occurred so far, and there are not enough letters left in the
 	 * histogram to create words of that length, abort this branch: */
-	if (!len_satisfied && h->ntotal < anagram_contains_len) {
+	if (!len_satisfied && h->ntotal < config->haslength) {
 		return;
 	}
 	/* Loop over all words; anagram may contain the same word more than once: */
@@ -152,7 +152,7 @@ words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains
 		{
 			/* Ensure before printing that at least one of the words in
 			 * the anagram is at least 'anagram_contains_len' in length: */
-			if (len_satisfied || w->len >= anagram_contains_len) {
+			if (len_satisfied || w->len >= config->haslength) {
 				fwrite(w->str, w->len, 1, stdout);
 				/* Backtrack over all previous words in this chain,
 				 * print them all in reverse order: */
@@ -176,7 +176,7 @@ words_find (struct histogram *h, struct prev_word *prev, size_t anagram_contains
 		pw.str = w->str;
 		pw.len = w->len;
 		pw.prev = prev;
-		words_find(copy, &pw, anagram_contains_len, (len_satisfied || w->len >= anagram_contains_len));
+		words_find(config, copy, &pw, (len_satisfied || w->len >= config->haslength));
 		histogram_destroy(&copy);
 	}
 }
@@ -279,7 +279,7 @@ char_compare (const void *const p1, const void *const p2)
 }
 
 static int
-parse_dictfile (const char *const filename, const struct histogram *const inhist, size_t minlen, size_t *max_found_len, size_t *nwords)
+parse_dictfile (const struct config *config, const struct histogram *const inhist, size_t *max_found_len, size_t *nwords)
 {
 	FILE *fp = NULL;
 	char buf[10000];	/* Window chunk size, not max filesize */
@@ -289,7 +289,7 @@ parse_dictfile (const char *const filename, const struct histogram *const inhist
 	size_t len = 0;
 	int skip_word = 0;
 
-	if ((fp = fopen(filename, "r")) == NULL) {
+	if ((fp = fopen(config->dictfile, "r")) == NULL) {
 		return 0;
 	}
 	while ((nbytes = len + fread(buf + len, 1, sizeof(buf) - len, fp)) > 0)
@@ -313,7 +313,7 @@ parse_dictfile (const char *const filename, const struct histogram *const inhist
 				}
 				continue;
 			}
-			if (skip_word == 0 && len >= minlen) {
+			if (skip_word == 0 && len >= config->minlength) {
 				if (word_add(anchor, len, inhist)) {
 					if (len > *max_found_len) {
 						*max_found_len = len;
@@ -337,14 +337,15 @@ parse_dictfile (const char *const filename, const struct histogram *const inhist
 int
 main (int argc, char *argv[])
 {
+	struct config config = config_default;
 	struct histogram *inhist;
-	size_t word_min_len = 1;
-	size_t anagram_contains_len = 1;
-	char *filename = DEFAULT_DICTFILE;
 	char *instr;
 	size_t inlen;
 	size_t max_found_len = 0;
 	size_t nwords = 0;
+
+	// Save the name by which the program was called.
+	config.name = argv[0];
 
 	/* Parse options: */
 	for (;;)
@@ -369,17 +370,17 @@ main (int argc, char *argv[])
 
 			case 'f':
 				/* Dictionary file to use (file must contain one word per line): */
-				filename = optarg;
+				config.dictfile = optarg;
 				break;
 
 			case 'm':
 				/* All words in the anagram must have at least this length: */
-				word_min_len = atoi(optarg);
+				config.minlength = atoi(optarg);
 				break;
 
 			case 'l':
 				/* The anagram must contain a word of at least this length: */
-				anagram_contains_len = atoi(optarg);
+				config.haslength = atoi(optarg);
 				break;
 		}
 	}
@@ -397,7 +398,7 @@ main (int argc, char *argv[])
 		return 1;
 	}
 	/* Parse the dictionary file: */
-	if (parse_dictfile(filename, inhist, word_min_len, &max_found_len, &nwords) == 0) {
+	if (parse_dictfile(&config, inhist, &max_found_len, &nwords) == 0) {
 		fprintf(stderr, "Could not parse file\n");
 		histogram_destroy(&inhist);
 		free(instr);
@@ -405,8 +406,8 @@ main (int argc, char *argv[])
 	}
 	/* Check that we have words, and at least one has a length of at least
 	 * 'anagram_contains_len': */
-	if (max_found_len >= anagram_contains_len && nwords > 0) {
-		words_find(inhist, NULL, anagram_contains_len, 0);
+	if (max_found_len >= config.haslength && nwords > 0) {
+		words_find(&config, inhist, NULL, 0);
 	}
 	words_destroy();
 	histogram_destroy(&inhist);
