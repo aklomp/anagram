@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "args.h"
+
 struct config {
 
 	// Name by which the binary was called.
@@ -10,6 +12,9 @@ struct config {
 
 	// Path of the dictionary file to use.
 	const char *dictfile;
+
+	// Words given on the command line.
+	struct args words;
 
 	// All words in the anagram must have at least this length.
 	uint8_t minlength;

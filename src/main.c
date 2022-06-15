@@ -21,7 +21,6 @@
 #include <stdlib.h>	/* malloc() */
 #include <string.h>	/* memmove() */
 #include <errno.h>
-#include <getopt.h>
 #include <ctype.h>	/* isspace() */
 
 #include "config.h"
@@ -44,18 +43,18 @@ static struct word *word_head = NULL;
 static struct word *word_tail = NULL;
 
 static void
-usage (const char *prgnam)
+usage (const struct config *config)
 {
 	char *usage[] = {
 		"  -h|--help                  Show this help text",
-		"  -f|--wordfile <dictfile>   Use this dictionary file (one word per line)",
+		"  -f|--dictfile <dictfile>   Use this dictionary file (one word per line)",
 		"  -m|--minlength <length>    All anagram words must be at least this long",
 		"  -l|--haslength <length>    One anagram word must be at least this long\n"
 	};
 	unsigned int i;
 
 	fprintf(stderr, "\nFind anagrams of the input phrases (as argument, else standard input)\n");
-	fprintf(stderr, "Usage: %s [-h] [-f dictfile] [-m minlength] [-l haslength] words...\n\n", prgnam);
+	fprintf(stderr, "Usage: %s [-h] [-f dictfile] [-m minlength] [-l haslength] words...\n\n", config->name);
 
 	for (i = 0; i < sizeof(usage) / sizeof(usage[0]); i++) {
 		fprintf(stderr, "%s\n", usage[i]);
@@ -196,39 +195,41 @@ words_destroy (void)
 }
 
 static char *
-get_instr_from_args (int argc, char *argv[], size_t *inlen)
+get_instr_from_args (const struct config *config, size_t *inlen)
 {
 	size_t len = 0;
-	int i;
-	char *c;
 	char *p;
 	char *instr;
 
-	/* No options left on command line? */
-	if (optind >= argc) {
+	// Return if the user did not specify any words on the command line.
+	if (config->words.ac == 0) {
 		return NULL;
 	}
-	/* Find combined length of input strings without spaces: */
-	for (i = optind; i < argc; i++) {
-		for (c = argv[i]; *c; c++) {
+
+	// Find the combined length of all words without spaces.
+	for (int i = 0; i < config->words.ac; i++) {
+		for (char *c = config->words.av[i]; *c; c++) {
 			if (!isspace(*c)) {
 				len++;
 			}
 		}
 	}
+
 	/* Allocate a string of this size: */
 	if (len == 0 || (p = instr = malloc(*inlen = len)) == NULL) {
 		return NULL;
 	}
+
 	/* Now copy the input strings, minus whitespace,
 	 * to this string: */
-	for (i = optind; i < argc; i++) {
-		for (c = argv[i]; *c; c++) {
+	for (int i = 0; i < config->words.ac; i++) {
+		for (char *c = config->words.av[i]; *c; c++) {
 			if (!isspace(*c)) {
 				*p++ = *c;
 			}
 		}
 	}
+
 	return instr;
 }
 
@@ -344,49 +345,21 @@ main (int argc, char *argv[])
 	size_t max_found_len = 0;
 	size_t nwords = 0;
 
-	// Save the name by which the program was called.
-	config.name = argv[0];
-
-	/* Parse options: */
-	for (;;)
-	{
-		int c;
-		int opt_index = 0;
-		static struct option opt_long[] = {
-			{ "help", 0, 0, 'h' },
-			{ "wordfile", 1, 0, 'f' },
-			{ "minlength", 1, 0, 'm' },
-			{ "haslength", 1, 0, 'l' },
-			{ 0, 0, 0, 0 }
-		};
-		if ((c = getopt_long(argc, argv, "hf:m:l:", opt_long, &opt_index)) == -1) {
-			break;
-		}
-		switch (c)
-		{
-			case 'h':
-				usage(argv[0]);
-				return 0;
-
-			case 'f':
-				/* Dictionary file to use (file must contain one word per line): */
-				config.dictfile = optarg;
-				break;
-
-			case 'm':
-				/* All words in the anagram must have at least this length: */
-				config.minlength = atoi(optarg);
-				break;
-
-			case 'l':
-				/* The anagram must contain a word of at least this length: */
-				config.haslength = atoi(optarg);
-				break;
-		}
+	// Parse the command line options.
+	if (!args_parse(&config, &(struct args) { .ac = argc, .av = argv })) {
+		usage(&config);
+		return 1;
 	}
+
+	// Check if the user just wants the help message.
+	if (config.print_help) {
+		usage(&config);
+		return 0;
+	}
+
 	/* Interpret the other elements as input strings to anagram;
 	 * if no further arguments, read from stdin: */
-	if ((instr = get_instr_from_args(argc, argv, &inlen)) == NULL
+	if ((instr = get_instr_from_args(&config, &inlen)) == NULL
 	 && (instr = get_instr_from_stdin(&inlen)) == NULL) {
 		/* The anagram of the empty string is the empty string. Success? */
 		return 0;
