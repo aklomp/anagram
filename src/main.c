@@ -20,11 +20,10 @@
 #include <stdio.h>
 #include <stdlib.h>	/* malloc() */
 #include <string.h>	/* memmove() */
-#include <errno.h>
-#include <ctype.h>	/* isspace() */
 
 #include "config.h"
 #include "histogram.h"
+#include "input.h"
 
 struct word {
 	char *str;
@@ -194,82 +193,6 @@ words_destroy (void)
 	}
 }
 
-static char *
-get_instr_from_args (const struct config *config, size_t *inlen)
-{
-	size_t len = 0;
-	char *p;
-	char *instr;
-
-	// Return if the user did not specify any words on the command line.
-	if (config->words.ac == 0) {
-		return NULL;
-	}
-
-	// Find the combined length of all words without spaces.
-	for (int i = 0; i < config->words.ac; i++) {
-		for (char *c = config->words.av[i]; *c; c++) {
-			if (!isspace(*c)) {
-				len++;
-			}
-		}
-	}
-
-	/* Allocate a string of this size: */
-	if (len == 0 || (p = instr = malloc(*inlen = len)) == NULL) {
-		return NULL;
-	}
-
-	/* Now copy the input strings, minus whitespace,
-	 * to this string: */
-	for (int i = 0; i < config->words.ac; i++) {
-		for (char *c = config->words.av[i]; *c; c++) {
-			if (!isspace(*c)) {
-				*p++ = *c;
-			}
-		}
-	}
-
-	return instr;
-}
-
-static char *
-get_instr_from_stdin (size_t *inlen)
-{
-	char *instr = NULL;
-	ssize_t n, len = 0;
-	char *t, *h;
-
-	/* Copy characters char by char from stdin to buffer.
-	 * We allocate a max buffer size of 100 characters, which is extremely
-	 * generous, since the amount of anagrams explodes with input size: */
-	if ((instr = malloc(100)) == NULL) {
-		return NULL;
-	}
-	do {
-		/* Keep retrying the read in case of EINTR: */
-		while ((n = read(0, instr, 100 - len)) < 0 && errno == EINTR) {
-			;
-		}
-		len += n;
-	}
-	while (n > 0 && len < 100);
-
-	if (len == 0) {
-		free(instr);
-		return NULL;
-	}
-	/* Now remove all spaces: */
-	for (t = h = instr; *h && h - instr < len; h++) {
-		if (!isspace(*h)) {
-			*t++ = *h;
-		}
-	}
-	*t = '\0';
-	*inlen = t - instr;
-	return instr;
-}
-
 static int
 char_compare (const void *const p1, const void *const p2)
 {
@@ -339,9 +262,8 @@ int
 main (int argc, char *argv[])
 {
 	struct config config = config_default;
+	struct input  input;
 	struct histogram *inhist;
-	char *instr;
-	size_t inlen;
 	size_t max_found_len = 0;
 	size_t nwords = 0;
 
@@ -357,24 +279,22 @@ main (int argc, char *argv[])
 		return 0;
 	}
 
-	/* Interpret the other elements as input strings to anagram;
-	 * if no further arguments, read from stdin: */
-	if ((instr = get_instr_from_args(&config, &inlen)) == NULL
-	 && (instr = get_instr_from_stdin(&inlen)) == NULL) {
-		/* The anagram of the empty string is the empty string. Success? */
-		return 0;
+	// Get the input string from the command line arguments or stdin.
+	if (!input_get(&config, &input)) {
+		return 1;
 	}
+
 	/* Create histogram of input string: */
-	if ((inhist = histogram_create(instr, inlen)) == NULL) {
+	if ((inhist = histogram_create(input.str, input.len)) == NULL) {
 		fprintf(stderr, "Could not create histogram of input\n");
-		free(instr);
+		free(input.str);
 		return 1;
 	}
 	/* Parse the dictionary file: */
 	if (parse_dictfile(&config, inhist, &max_found_len, &nwords) == 0) {
 		fprintf(stderr, "Could not parse file\n");
 		histogram_destroy(&inhist);
-		free(instr);
+		free(input.str);
 		return 1;
 	}
 	/* Check that we have words, and at least one has a length of at least
@@ -384,6 +304,6 @@ main (int argc, char *argv[])
 	}
 	words_destroy();
 	histogram_destroy(&inhist);
-	free(instr);
+	free(input.str);
 	return 0;
 }
