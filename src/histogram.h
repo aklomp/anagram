@@ -1,18 +1,28 @@
-#ifndef HISTOGRAM_H
-#define HISTOGRAM_H
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
 
 struct histogram {
-	char *bins;	/* Pointer to array holding characters */
-	int *freq;	/* Pointer to array holding frequency counts */
-	size_t len;	/* Number of bins (unique characters) */
-	int maxfreq;	/* Maximum frequency found in this histogram */
-	size_t ntotal;	/* Total characters represented (length of source string) */
+
+	// Pointer to the array holding the characters.
+	char *bins;
+
+	// Pointer to the array holding the frequency counts.
+	int *freq;
+
+	// Number of bins (unique characters).
+	size_t len;
+
+	// Maximum character frequency found in this histogram.
+	int maxfreq;
+
+	// Total characters represented (length of source string).
+	size_t ntotal;
 };
 
-struct histogram *histogram_create (const char *const str, const size_t len);
-struct histogram *histogram_copy (const struct histogram *orig);
-void histogram_destroy (struct histogram **h);
-int histogram_fits (const struct histogram *const test, const struct histogram *const base);
-int histogram_subtract (struct histogram *target, struct histogram *from);
-
-#endif /* HISTOGRAM_H */
+extern struct histogram *histogram_create (const char *str, const size_t len);
+extern struct histogram *histogram_copy (const struct histogram *orig);
+extern void histogram_destroy (struct histogram **h);
+extern bool histogram_fits (const struct histogram *test, const struct histogram *base);
+extern bool histogram_subtract (struct histogram *target, struct histogram *from);

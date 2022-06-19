@@ -27,7 +27,7 @@ char_compare (const void *const p1, const void *const p2)
 }
 
 struct histogram *
-histogram_create (const char *const str, const size_t len)
+histogram_create (const char *str, const size_t len)
 {
 	char *c;
 	char *p;
@@ -126,8 +126,8 @@ histogram_destroy (struct histogram **h)
 	*h = NULL;
 }
 
-int
-histogram_fits (const struct histogram *const test, const struct histogram *const base)
+bool
+histogram_fits (const struct histogram *test, const struct histogram *base)
 {
 	char *t;
 	char *b;
@@ -136,11 +136,11 @@ histogram_fits (const struct histogram *const test, const struct histogram *cons
 
 	/* If the test histogram is larger than the base histogram, it cannot fit: */
 	if (test->len > base->len) {
-		return 0;
+		return false;
 	}
 	/* If the test histogram has a larger maxfreq than the base, it cannot fit: */
 	if (test->maxfreq > base->maxfreq) {
-		return 0;
+		return false;
 	}
 	/* If any one of the characters in the test occurs more frequently than
 	 * the corresponding character in the base, it cannot fit: */
@@ -148,22 +148,22 @@ histogram_fits (const struct histogram *const test, const struct histogram *cons
 		while (*b < *t) {
 			/* Character not found in base? Quit: */
 			if (++b == base->bins + base->len) {
-				return 0;
+				return false;
 			}
 		}
 		/* Character not found in base? Quit: */
 		if (*b != *t) {
-			return 0;
+			return false;
 		}
 		/* Character has higher frequency in test than in base? Test can never fit: */
 		if (test->freq[t - test->bins] > base->freq[b - base->bins]) {
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
-int
+bool
 histogram_subtract (struct histogram *target, struct histogram *from)
 {
 	char *t;
@@ -185,20 +185,20 @@ histogram_subtract (struct histogram *target, struct histogram *from)
 				target->maxfreq = *freq_t;
 			}
 			if (++t == target->bins + target->len) {
-				return 0;
+				return false;
 			}
 			freq_t = target->freq + (t - target->bins);
 		}
 		/* Corresponding char not found? Quit: */
 		if (*t != *f) {
-			return 0;
+			return false;
 		}
 		/* Helper variable, for readability: */
 		freq_f = from->freq + (f - from->bins);
 
 		/* Underflow? */
 		if (*freq_f > *freq_t) {
-			return 0;
+			return false;
 		}
 		*freq_t -= *freq_f;
 		target->ntotal -= *freq_f;
@@ -206,5 +206,5 @@ histogram_subtract (struct histogram *target, struct histogram *from)
 			target->maxfreq = *freq_t;
 		}
 	}
-	return 1;
+	return true;
 }

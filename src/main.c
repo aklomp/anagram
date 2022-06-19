@@ -141,7 +141,7 @@ words_find (const struct config *config, struct histogram *h, struct prev_word *
 		if ((copy = histogram_copy(h)) == NULL) {
 			return;
 		}
-		if (histogram_subtract(copy, w->hist) == 0) {
+		if (!histogram_subtract(copy, w->hist)) {
 			histogram_destroy(&copy);
 			return;
 		}
