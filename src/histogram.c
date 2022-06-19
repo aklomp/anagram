@@ -127,39 +127,43 @@ histogram_destroy (struct histogram **h)
 }
 
 bool
-histogram_fits (const struct histogram *test, const struct histogram *base)
+histogram_fits (const struct histogram *h, const struct histogram *base)
 {
-	char *t;
-	char *b;
-
-	/* Caller ensures that the data in word are all available in base. */
-
-	/* If the test histogram is larger than the base histogram, it cannot fit: */
-	if (test->len > base->len) {
+	// The histogram cannot fit in the base histogram if it contains
+	// characters that the base does not.
+	if (h->len > base->len) {
 		return false;
 	}
-	/* If the test histogram has a larger maxfreq than the base, it cannot fit: */
-	if (test->maxfreq > base->maxfreq) {
+
+	// The histogram cannot fit in the base histogram if it has a larger
+	// maximum character frequency.
+	if (h->maxfreq > base->maxfreq) {
 		return false;
 	}
-	/* If any one of the characters in the test occurs more frequently than
-	 * the corresponding character in the base, it cannot fit: */
-	for (t = test->bins, b = base->bins; t < test->bins + test->len; t++) {
+
+	// If any one of the characters occurs more frequently in the histogram
+	// than in the base, the histogram cannot fit.
+	for (char *t = h->bins, *b = base->bins; t < h->bins + h->len; t++) {
+
+		// Find the character in the base; quit if not found.
 		while (*b < *t) {
-			/* Character not found in base? Quit: */
 			if (++b == base->bins + base->len) {
 				return false;
 			}
 		}
-		/* Character not found in base? Quit: */
+
+		// Quit if the character was not found in the base.
 		if (*b != *t) {
 			return false;
 		}
-		/* Character has higher frequency in test than in base? Test can never fit: */
-		if (test->freq[t - test->bins] > base->freq[b - base->bins]) {
+
+		// The histogram cannot fit if the character has a higher
+		// frequency than it has in the base.
+		if (h->freq[t - h->bins] > base->freq[b - base->bins]) {
 			return false;
 		}
 	}
+
 	return true;
 }
 

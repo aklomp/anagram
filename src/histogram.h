@@ -24,5 +24,9 @@ struct histogram {
 extern struct histogram *histogram_create (const char *str, const size_t len);
 extern struct histogram *histogram_copy (const struct histogram *orig);
 extern void histogram_destroy (struct histogram **h);
-extern bool histogram_fits (const struct histogram *test, const struct histogram *base);
+
+// Check if a given histogram #h "fits" inside the base histogram, meaning that
+// #h is a subset of the base and is wholly contained within the base.
+// Subtracting #h from the base will not cause an "underflow".
+extern bool histogram_fits (const struct histogram *h, const struct histogram *base);
 extern bool histogram_subtract (struct histogram *target, struct histogram *from);
