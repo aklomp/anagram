@@ -126,6 +126,21 @@ histogram_destroy (struct histogram **h)
 	*h = NULL;
 }
 
+static inline const char *
+find_character (const struct histogram *h, const char c)
+{
+	for (char *b = h->bins; b < h->bins + h->len; b++) {
+		if (*b > c) {
+			return NULL;
+		}
+		if (*b == c) {
+			return b;
+		}
+	}
+
+	return NULL;
+}
+
 bool
 histogram_fits (const struct histogram *h, const struct histogram *base)
 {
@@ -143,17 +158,10 @@ histogram_fits (const struct histogram *h, const struct histogram *base)
 
 	// If any one of the characters occurs more frequently in the histogram
 	// than in the base, the histogram cannot fit.
-	for (char *t = h->bins, *b = base->bins; t < h->bins + h->len; t++) {
+	for (const char *b, *t = h->bins; t < h->bins + h->len; t++) {
 
 		// Find the character in the base; quit if not found.
-		while (*b < *t) {
-			if (++b == base->bins + base->len) {
-				return false;
-			}
-		}
-
-		// Quit if the character was not found in the base.
-		if (*b != *t) {
+		if ((b = find_character(base, *t)) == NULL) {
 			return false;
 		}
 
